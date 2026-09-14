@@ -1,0 +1,53 @@
+:root {
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+main {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 4rem 1.5rem;
+}
+
+h1 {
+  margin: 0 0 0.75rem;
+  font-size: 2rem;
+}
+
+.lead {
+  margin: 0 0 2rem;
+  color: #475569;
+}
+
+.status {
+  padding: 1rem 1.25rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  background: #fff;
+}
+
+.status p {
+  margin: 0.35rem 0;
+}
+
+.status .ok {
+  color: #047857;
+}
+
+.status .degraded {
+  color: #b45309;
+}
+
+.status .error {
+  color: #b91c1c;
+}
