@@ -1,6 +1,6 @@
 # Tokenized Stocks App
 
-LightPool spot-exchange sample (AAPL/USDT-style). Scaffold only: thin API + home page.
+LightPool spot-exchange sample (AAPL/USDT-style). Thin API + rough trade UI shell (placeholders only).
 
 ```text
 Browser :3000  →  backend :3001  →  clob-index :3002  →  lightpool node
@@ -42,6 +42,13 @@ npm run dev
 ```
 
 UI: `http://127.0.0.1:3000`
+
+Trade page shell panels (placeholders, no market data yet):
+
+- Markets list, Chart (bars), Order book + recent trades
+- Full-height order ticket (Buy/Sell + Deposit/Withdraw)
+- Bottom tabs: Balances | Open orders | History | Fills
+- Admin page at `/admin`
 
 ## Venue
 

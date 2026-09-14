@@ -15,3 +15,6 @@ backend/target/
 
 # Logs
 *.log
+
+# TypeScript
+*.tsbuildinfo
