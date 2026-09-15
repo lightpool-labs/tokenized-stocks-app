@@ -1,8 +1,9 @@
 type ChartPanelProps = {
   pair: string;
+  spotMarket: string | null;
 };
 
-export function ChartPanel({ pair }: ChartPanelProps) {
+export function ChartPanel({ pair, spotMarket }: ChartPanelProps) {
   return (
     <section className="panel">
       <div className="panel-header">
@@ -10,7 +11,12 @@ export function ChartPanel({ pair }: ChartPanelProps) {
         <span>{pair}</span>
       </div>
       <div className="panel-body">
-        <div className="chart-placeholder">Chart placeholder</div>
+        <div className="chart-placeholder">
+          Chart placeholder
+          {spotMarket && (
+            <div className="spot-hint">spot: {spotMarket}</div>
+          )}
+        </div>
       </div>
     </section>
   );

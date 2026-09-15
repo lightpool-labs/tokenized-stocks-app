@@ -10,6 +10,9 @@ backend/target/
 .env
 .env.local
 
+# App registry (local cash/markets)
+backend/data/
+
 # OS
 .DS_Store
 

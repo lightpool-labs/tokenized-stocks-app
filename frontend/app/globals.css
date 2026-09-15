@@ -498,6 +498,127 @@ button {
   color: var(--text-muted);
 }
 
+.admin-meta {
+  margin-bottom: 0.75rem !important;
+}
+
+.admin-meta code,
+.admin-result code,
+.ticket-meta code,
+.spot-hint {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  word-break: break-all;
+}
+
+.admin-btn {
+  margin-top: 0.75rem;
+  border: 1px solid var(--border);
+  background: var(--accent);
+  color: #fff;
+  border-radius: var(--radius);
+  padding: 0.45rem 0.85rem;
+}
+
+.admin-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.admin-form {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.75rem;
+}
+
+.admin-form label {
+  display: grid;
+  gap: 0.25rem;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.admin-form input {
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  border-radius: var(--radius);
+  padding: 0.45rem 0.55rem;
+}
+
+.admin-result {
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.admin-result p {
+  margin: 0.25rem 0 !important;
+  color: var(--text) !important;
+}
+
+.admin-alert {
+  border-radius: 8px;
+  padding: 0.7rem 0.85rem;
+  margin-bottom: 0.85rem;
+  border: 1px solid var(--border);
+}
+
+.admin-alert.error {
+  border-color: #7f1d1d;
+  background: rgba(246, 70, 93, 0.12);
+  color: #fecaca;
+}
+
+.admin-alert.ok {
+  border-color: #065f46;
+  background: rgba(14, 203, 129, 0.12);
+  color: #a7f3d0;
+}
+
+.admin-market-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+
+.admin-market-list li {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.admin-market-list li:first-child {
+  border-top: none;
+}
+
+.markets-empty {
+  margin: 0.5rem;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.markets-empty.error {
+  color: #fca5a5;
+}
+
+.markets-empty a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.ticket-meta {
+  margin: -0.35rem 0 0.75rem;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.spot-hint {
+  margin-top: 0.5rem;
+  color: var(--text-muted);
+}
+
 .admin-top {
   display: flex;
   align-items: center;
