@@ -49,32 +49,112 @@ button {
 
 .app-shell {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
+  grid-template-columns: minmax(0, 2.5fr) minmax(260px, 1fr) minmax(260px, 1fr);
+  grid-template-rows: var(--topbar-h) minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas:
+    "top top top"
+    "chart book ticket"
+    "tabs tabs ticket";
   height: 100vh;
   min-height: 640px;
   overflow: hidden;
 }
 
-.main-column {
-  display: grid;
-  grid-template-rows: var(--topbar-h) minmax(0, 1fr) 220px;
+.shell-top {
+  grid-area: top;
   min-width: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.chart-stack {
+  grid-area: chart;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
   border-right: 1px solid var(--border);
+  background: var(--bg-panel);
 }
 
 .ticket-column {
+  grid-area: ticket;
   display: flex;
   flex-direction: column;
   min-height: 0;
   background: var(--bg-panel);
   overflow: auto;
+  border-left: 1px solid var(--border);
 }
 
-.workspace {
-  display: grid;
-  grid-template-columns: 180px minmax(0, 1.4fr) minmax(240px, 0.9fr);
+.orderbook-panel {
+  grid-area: book;
+  min-width: 0;
   min-height: 0;
-  border-top: 1px solid var(--border);
+  border-right: none;
+}
+
+.chart-topbar {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 44px;
+  padding: 0.35rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.market-select {
+  position: relative;
+  min-width: 0;
+}
+
+.market-select-trigger {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  max-width: 100%;
+  border: none;
+  background: transparent;
+  padding: 0.25rem 0.2rem;
+  color: var(--text);
+}
+
+.market-select-trigger:hover,
+.market-select-trigger.open {
+  color: #fff;
+}
+
+.market-select-pair {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.market-select-name {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.market-select-caret {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.market-select-menu {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  z-index: 20;
+  width: min(320px, 70vw);
+  max-height: 320px;
+  overflow: auto;
+  padding: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
 }
 
 .panel {
@@ -410,6 +490,7 @@ button {
 }
 
 .bottom-tabs {
+  grid-area: tabs;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -619,6 +700,96 @@ button {
   color: var(--text-muted);
 }
 
+.chart-panel {
+  min-height: 0;
+  flex: 1;
+  border-right: none;
+}
+
+.chart-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.interval-group {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.interval-group button {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: var(--radius);
+  padding: 0.2rem 0.45rem;
+  font-size: 11px;
+}
+
+.interval-group button.active,
+.interval-group button:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--hover);
+  border-color: #3a4554;
+}
+
+.interval-group button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.chart-meta {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.chart-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.chart-canvas {
+  width: 100%;
+  height: 100%;
+  min-height: 180px;
+}
+
+.chart-empty {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  text-align: center;
+  color: var(--text-muted);
+  background: rgba(18, 22, 28, 0.72);
+  pointer-events: none;
+}
+
+.chart-empty.error {
+  color: #fca5a5;
+  align-items: flex-start;
+  justify-content: flex-start;
+  background: transparent;
+  padding: 0.75rem;
+}
+
+.chart-status {
+  flex-shrink: 0;
+  padding: 0.35rem 0.75rem;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
 .admin-top {
   display: flex;
   align-items: center;
@@ -631,20 +802,25 @@ button {
 @media (max-width: 1100px) {
   .app-shell {
     grid-template-columns: 1fr;
+    grid-template-rows: var(--topbar-h) auto auto auto auto;
+    grid-template-areas:
+      "top"
+      "chart"
+      "book"
+      "ticket"
+      "tabs";
     height: auto;
     min-height: 100vh;
     overflow: visible;
   }
 
-  .main-column {
-    grid-template-rows: var(--topbar-h) auto auto;
+  .chart-stack {
     border-right: none;
+    border-bottom: 1px solid var(--border);
+    min-height: 320px;
   }
 
-  .workspace {
-    grid-template-columns: 1fr;
-  }
-
+  .orderbook-panel,
   .panel {
     border-right: none;
     border-bottom: 1px solid var(--border);
@@ -653,10 +829,11 @@ button {
 
   .ticket-column {
     min-height: 420px;
+    border-left: none;
     border-top: 1px solid var(--border);
   }
 
   .bottom-tabs {
-    min-height: 220px;
+    min-height: 280px;
   }
 }

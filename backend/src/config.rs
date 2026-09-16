@@ -8,6 +8,8 @@ pub struct Config {
     pub clob_index_url: String,
     pub admin_private_key: String,
     pub registry_path: PathBuf,
+    pub hyperliquid_info_url: String,
+    pub hyperliquid_ws_url: String,
 }
 
 impl Config {
@@ -26,6 +28,10 @@ impl Config {
             registry_path: env::var("REGISTRY_PATH")
                 .map(PathBuf::from)
                 .unwrap_or_else(|_| PathBuf::from("data/registry.json")),
+            hyperliquid_info_url: env::var("HYPERLIQUID_INFO_URL")
+                .unwrap_or_else(|_| "https://api.hyperliquid.xyz/info".into()),
+            hyperliquid_ws_url: env::var("HYPERLIQUID_WS_URL")
+                .unwrap_or_else(|_| "wss://api.hyperliquid.xyz/ws".into()),
         }
     }
 }

@@ -1,9 +1,10 @@
 # Tokenized Stocks App
 
-LightPool spot-exchange sample (AAPL/USDT-style). Thin API + trade UI shell with Admin create-token / create-spot-market.
+LightPool spot-exchange sample (AAPL/USDT-style). Thin API + trade UI with Admin and Hyperliquid reference chart bars.
 
 ```text
 Browser :3000  →  backend :3001  →  clob-index :3002  →  lightpool node
+                              ↘  Hyperliquid info/WS (chart reference only)
 ```
 
 The backend is a client of clob-index, not of node RPC `:26300`. The frontend talks only to the backend. Admin txs are signed with the same Anvil #0 key as the LightPool validator.
@@ -36,8 +37,12 @@ API: `http://127.0.0.1:3001/api`
 | POST | `/api/admin/markets` | Body `{ "symbol", "name" }` → stock token + `SYMBOL/USDT` spot |
 | GET | `/api/markets` | App-registered spot pairs |
 | GET | `/api/markets/:id` | One market by id, symbol, or pair |
+| GET | `/api/markets/:symbol/bars` | Hyperliquid candle history (`xyz:<SYMBOL>`) |
+| WS | `/api/ws` | Live bars (`subscribe` channel `bars`) |
 
-Markets are stored in `backend/data/registry.json` (not clob-index event markets). After `./scripts/run-venue.sh clean`, delete that file (or wipe `backend/data/`) before recreating USDT / pairs.
+Chart coin rule: LightPool base `AAPL` → Hyperliquid `xyz:AAPL` (fixed prefix; no per-market coin field).
+
+Markets are stored in `backend/data/registry.json`. After venue `clean`, wipe that file before recreating USDT / pairs.
 
 ## Run the frontend
 
@@ -51,16 +56,11 @@ npm run dev
 UI: `http://127.0.0.1:3000`  
 Admin: `http://127.0.0.1:3000/admin`
 
-## Admin flow
+## Admin + chart flow
 
 1. Start venue: `lightpool-tutorials/scripts/run-venue.sh start`
-2. Open Admin → **Ensure USDT** (cash token)
-3. **Create token + spot market** (e.g. AAPL / Apple) → creates AAPL token then `AAPL/USDT` spot
-4. Trade page markets list loads real pairs; selecting one stores the spot `ContractAddress` in UI state
-
-Later chapters still own chart bars, live book, deposit/withdraw, and place-order.
-
-SDK path dependency: [`../lightpool-sdk-rust`](../lightpool-sdk-rust).
+2. Admin → Ensure USDT → create e.g. AAPL market
+3. Trade page: select `AAPL/USDT` → chart loads history for `xyz:AAPL`, then live candle updates (TradingView Lightweight Charts)
 
 ## Ports
 

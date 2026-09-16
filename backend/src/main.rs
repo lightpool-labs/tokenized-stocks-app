@@ -1,7 +1,10 @@
 use std::net::SocketAddr;
+use std::sync::Arc;
 
-use axum::extract::{Path, State};
+use axum::extract::ws::WebSocketUpgrade;
+use axum::extract::{Path, Query, State};
 use axum::http::{header, HeaderValue, Method, StatusCode};
+use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
@@ -14,14 +17,17 @@ mod chain;
 mod clob;
 mod config;
 mod error;
+mod hyperliquid;
 mod registry;
 mod state;
+mod ws_bars;
 
 use chain::{
     addresses_equal, create_stock_market, ensure_usdt, load_admin_signer, EXPECTED_ADMIN_ADDRESS,
 };
 use config::Config;
 use error::{AppError, AppResult};
+use hyperliquid::BarsResponse;
 use registry::{new_market_id, MarketRecord, Registry};
 use state::AppState;
 
@@ -58,6 +64,14 @@ struct CreateMarketBody {
 #[derive(Serialize)]
 struct MarketsResponse {
     markets: Vec<MarketRecord>,
+}
+
+#[derive(Deserialize)]
+struct BarsQuery {
+    interval: Option<String>,
+    limit: Option<u64>,
+    from: Option<u64>,
+    to: Option<u64>,
 }
 
 #[tokio::main]
@@ -117,7 +131,9 @@ async fn main() {
                 .route("/admin/ensure-cash", post(ensure_cash))
                 .route("/admin/markets", post(create_market))
                 .route("/markets", get(list_markets))
-                .route("/markets/:id", get(get_market)),
+                .route("/markets/:symbol/bars", get(get_bars))
+                .route("/markets/:id", get(get_market))
+                .route("/ws", get(ws_upgrade)),
         )
         .layer(cors)
         .layer(TraceLayer::new_for_http())
@@ -268,4 +284,40 @@ async fn get_market(
         .cloned()
         .map(Json)
         .ok_or_else(|| AppError::NotFound(format!("market '{id}' not found")))
+}
+
+async fn get_bars(
+    State(state): State<AppState>,
+    Path(symbol): Path<String>,
+    Query(query): Query<BarsQuery>,
+) -> AppResult<Json<BarsResponse>> {
+    // Prefer registry symbol when the path matches a registered market.
+    let symbol = {
+        let registry = state.registry.lock().await;
+        registry
+            .find_market(&symbol)
+            .map(|m| m.symbol.clone())
+            .unwrap_or(symbol)
+    };
+
+    let bars = state
+        .hl
+        .candle_snapshot(
+            &symbol,
+            query.interval.as_deref().unwrap_or("1m"),
+            query.limit,
+            query.from,
+            query.to,
+        )
+        .await?;
+
+    Ok(Json(bars))
+}
+
+async fn ws_upgrade(
+    ws: WebSocketUpgrade,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    let hl_ws_url = Arc::new(state.config.hyperliquid_ws_url.clone());
+    ws.on_upgrade(move |socket| ws_bars::handle_client_socket(socket, hl_ws_url))
 }

@@ -1,6 +1,6 @@
 export function OrderBookPanel() {
   return (
-    <section className="panel">
+    <section className="panel orderbook-panel">
       <div className="panel-header">Order book</div>
       <div className="panel-body">
         <div className="book-split">

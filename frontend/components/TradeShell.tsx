@@ -43,25 +43,26 @@ export function TradeShell() {
 
   return (
     <div className="app-shell">
-      <div className="main-column">
+      <div className="shell-top">
         <TopBar />
-        <div className="workspace">
+      </div>
+
+      <div className="chart-stack">
+        <div className="chart-topbar">
           <MarketsList
             markets={markets}
-            selectedId={selected?.id ?? null}
+            selected={selected}
             loading={loading}
             error={error}
             onSelect={setSelected}
           />
-          <ChartPanel pair={pair} spotMarket={selected?.spot_market ?? null} />
-          <OrderBookPanel />
         </div>
-        <BottomTabs />
+        <ChartPanel market={selected} />
       </div>
-      <OrderTicket
-        pair={pair}
-        selected={selected}
-      />
+
+      <OrderBookPanel />
+      <OrderTicket pair={pair} selected={selected} />
+      <BottomTabs />
     </div>
   );
 }
