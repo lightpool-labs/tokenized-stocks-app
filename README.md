@@ -1,10 +1,9 @@
 # Tokenized Stocks App
 
-LightPool spot-exchange sample (AAPL/USDT-style). Thin API + trade UI with Admin and Hyperliquid reference chart bars.
+A LightPool spot-exchange sample for tokenized US stocks. The trade page shows AAPL, TSLA, and INTC quoted in USDT, with Hyperliquid reference candles, a live LightPool order book, and MetaMask deposit and withdraw.
 
 ```text
 Browser :3000  →  backend :3001  →  clob-index :3002  →  lightpool node
-                              ↘  Hyperliquid info/WS (chart reference only)
 ```
 
 The backend is a client of clob-index, not of node RPC `:26300`. The frontend talks only to the backend. Admin txs are signed with the same Anvil #0 key as the LightPool validator.
