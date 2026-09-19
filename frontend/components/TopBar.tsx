@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useWallet } from "@/components/WalletProvider";
+import { shortAddress } from "@/lib/wallet";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:3001/api";
 
@@ -11,6 +13,7 @@ type HealthResponse = {
 
 export function TopBar() {
   const [health, setHealth] = useState<"ok" | "down" | "checking">("checking");
+  const { address, busy, error, connect } = useWallet();
 
   useEffect(() => {
     let cancelled = false;
@@ -58,8 +61,16 @@ export function TopBar() {
       >
         {health === "checking" ? "api…" : health === "ok" ? "api ok" : "api down"}
       </span>
-      <button type="button" className="connect-btn">
-        Connect
+      <button
+        type="button"
+        className="connect-btn"
+        disabled={busy}
+        title={error ?? (address ? address : "Connect MetaMask")}
+        onClick={() => {
+          void connect().catch(() => undefined);
+        }}
+      >
+        {address ? shortAddress(address) : busy ? "Connecting…" : "Connect"}
       </button>
     </header>
   );

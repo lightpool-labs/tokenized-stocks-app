@@ -8,6 +8,7 @@ import { OrderBookPanel } from "@/components/OrderBookPanel";
 import { OrderTicket } from "@/components/OrderTicket";
 import { BottomTabs } from "@/components/BottomTabs";
 import { listMarkets, type Market } from "@/lib/api";
+import { WalletProvider } from "@/components/WalletProvider";
 
 export function TradeShell() {
   const [markets, setMarkets] = useState<Market[]>([]);
@@ -42,6 +43,7 @@ export function TradeShell() {
   const pair = selected?.pair ?? "—";
 
   return (
+    <WalletProvider>
     <div className="app-shell">
       <div className="shell-top">
         <TopBar />
@@ -64,5 +66,6 @@ export function TradeShell() {
       <OrderTicket pair={pair} selected={selected} />
       <BottomTabs />
     </div>
+    </WalletProvider>
   );
 }

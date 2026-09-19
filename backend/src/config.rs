@@ -8,6 +8,8 @@ pub struct Config {
     pub clob_index_url: String,
     pub admin_private_key: String,
     pub registry_path: PathBuf,
+    pub bridge_state_path: PathBuf,
+    pub evm_rpc_url: String,
     pub hyperliquid_info_url: String,
     pub hyperliquid_ws_url: String,
 }
@@ -30,6 +32,13 @@ impl Config {
                 .unwrap_or_else(|_| {
                     PathBuf::from("../../data/tokenized-stocks/registry.json")
                 }),
+            bridge_state_path: env::var("BRIDGE_STATE_PATH")
+                .map(PathBuf::from)
+                .unwrap_or_else(|_| {
+                    PathBuf::from("../../data/tokenized-stocks/eth-bridge.json")
+                }),
+            evm_rpc_url: env::var("EVM_RPC_URL")
+                .unwrap_or_else(|_| "http://127.0.0.1:8545".into()),
             hyperliquid_info_url: env::var("HYPERLIQUID_INFO_URL")
                 .unwrap_or_else(|_| "https://api.hyperliquid.xyz/info".into()),
             hyperliquid_ws_url: env::var("HYPERLIQUID_WS_URL")

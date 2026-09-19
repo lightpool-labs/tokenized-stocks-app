@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useWallet } from "@/components/WalletProvider";
 
 const TABS = ["Balances", "Open orders", "History", "Fills"] as const;
 
@@ -15,7 +16,9 @@ const COLUMNS: Record<Tab, string[]> = {
 
 export function BottomTabs() {
   const [tab, setTab] = useState<Tab>("Balances");
+  const { address, balances } = useWallet();
   const columns = COLUMNS[tab];
+  const showBalances = tab === "Balances" && address !== null;
 
   return (
     <section className="bottom-tabs">
@@ -41,9 +44,20 @@ export function BottomTabs() {
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td colSpan={columns.length}>No {tab.toLowerCase()} yet.</td>
-            </tr>
+            {showBalances && balances.length > 0 ? (
+              balances.map((row) => (
+                <tr key={row.symbol}>
+                  <td className="data">{row.symbol}</td>
+                  <td className="data">{row.available}</td>
+                  <td className="data">{row.locked}</td>
+                  <td className="data">{row.total}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={columns.length}>No {tab.toLowerCase()} yet.</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

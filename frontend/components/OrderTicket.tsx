@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import type { Market } from "@/lib/api";
+import { useWallet } from "@/components/WalletProvider";
+import { parseAmount6 } from "@/lib/wallet";
 
 type OrderTicketProps = {
   pair: string;
@@ -10,7 +12,35 @@ type OrderTicketProps = {
 
 export function OrderTicket({ pair, selected }: OrderTicketProps) {
   const [side, setSide] = useState<"buy" | "sell">("buy");
+  const [amount, setAmount] = useState("");
+  const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const { busy, deposit, withdraw } = useWallet();
   const baseSymbol = selected?.symbol ?? pair.split("/")[0] ?? "—";
+
+  async function onDeposit() {
+    setStatus(null);
+    setError(null);
+    try {
+      parseAmount6(amount);
+      await deposit(amount);
+      setStatus("Deposit submitted");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Deposit failed");
+    }
+  }
+
+  async function onWithdraw() {
+    setStatus(null);
+    setError(null);
+    try {
+      parseAmount6(amount);
+      await withdraw(amount);
+      setStatus("Withdraw submitted");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Withdraw failed");
+    }
+  }
 
   return (
     <aside className="ticket-column">
@@ -57,13 +87,38 @@ export function OrderTicket({ pair, selected }: OrderTicketProps) {
       <div className="ticket-section">
         <h2>Deposit / Withdraw</h2>
         <div className="fund-actions">
-          <button type="button" disabled>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              void onDeposit();
+            }}
+          >
             Deposit
           </button>
-          <button type="button" disabled>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              void onWithdraw();
+            }}
+          >
             Withdraw
           </button>
         </div>
+        <div className="field fund-amount">
+          <label htmlFor="fund-amount">Amount (USDT)</label>
+          <input
+            id="fund-amount"
+            type="text"
+            inputMode="decimal"
+            placeholder="0.00"
+            value={amount}
+            onChange={(event) => setAmount(event.target.value)}
+          />
+        </div>
+        {status ? <p className="fund-status">{status}</p> : null}
+        {error ? <p className="fund-status error">{error}</p> : null}
       </div>
     </aside>
   );

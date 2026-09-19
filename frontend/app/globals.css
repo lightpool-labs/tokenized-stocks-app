@@ -597,8 +597,24 @@ button {
   padding: 0.65rem 0.5rem;
 }
 
-.fund-actions button:hover {
-  border-color: var(--accent);
+.fund-actions button:disabled,
+.connect-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.fund-amount {
+  margin-top: 0.75rem;
+}
+
+.fund-status {
+  margin: 0.65rem 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.fund-status.error {
+  color: var(--sell);
 }
 
 .selected-pair {
@@ -660,6 +676,10 @@ button {
 .empty-table th {
   font-weight: 600;
   color: var(--text-muted);
+}
+
+.empty-table td.data {
+  color: var(--text);
 }
 
 .admin-page {

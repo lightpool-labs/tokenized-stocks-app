@@ -13,6 +13,7 @@ use tower_http::trace::TraceLayer;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
+mod bridge;
 mod chain;
 mod clob;
 mod config;
@@ -20,11 +21,14 @@ mod error;
 mod hyperliquid;
 mod registry;
 mod state;
+mod user_tx;
 mod ws_bars;
 
+use bridge::get_bridge;
 use chain::{
     addresses_equal, create_stock_market, ensure_usdt, load_admin_signer, EXPECTED_ADMIN_ADDRESS,
 };
+use user_tx::{prepare_agent, prepare_withdraw, submit_agent, submit_withdraw};
 use config::Config;
 use error::{AppError, AppResult};
 use hyperliquid::BarsResponse;
@@ -133,7 +137,12 @@ async fn main() {
                 .route("/markets", get(list_markets))
                 .route("/markets/:symbol/bars", get(get_bars))
                 .route("/markets/:id", get(get_market))
-                .route("/ws", get(ws_upgrade)),
+                .route("/ws", get(ws_upgrade))
+                .route("/bridge", get(get_bridge))
+                .route("/agent/prepare", post(prepare_agent))
+                .route("/agent/submit", post(submit_agent))
+                .route("/withdraw/prepare", post(prepare_withdraw))
+                .route("/withdraw/submit", post(submit_withdraw)),
         )
         .layer(cors)
         .layer(TraceLayer::new_for_http())

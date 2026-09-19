@@ -3396,6 +3396,7 @@ name = "tokenized-stocks-backend"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "bincode",
  "dotenvy",
  "futures-util",
  "hex",
