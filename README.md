@@ -42,7 +42,7 @@ API: `http://127.0.0.1:3001/api`
 
 Chart coin rule: LightPool base `AAPL` → Hyperliquid `xyz:AAPL` (fixed prefix; no per-market coin field).
 
-Markets are stored in `backend/data/registry.json`. After venue `clean`, wipe that file before recreating USDT / pairs.
+Markets are stored in `$LABS/data/tokenized-stocks/registry.json` (from `backend/`: `../../data/tokenized-stocks/registry.json`). `./scripts/run-venue.sh clean` deletes that whole course data dir, including the registry.
 
 ## Run the frontend
 

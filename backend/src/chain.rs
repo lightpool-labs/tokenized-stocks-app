@@ -12,7 +12,8 @@ pub const EXPECTED_ADMIN_ADDRESS: &str = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb9
 const USDT_SUPPLY_WHOLE: u64 = 1_000_000_000;
 const STOCK_SUPPLY_WHOLE: u64 = 1_000_000_000;
 const MIN_ORDER_SIZE: u64 = 100_000;
-const TICK_SIZE: u64 = 1_000_000;
+/// $0.01 in LightPool raw price units (`0.01 * TOKEN_SCALE`).
+const TICK_SIZE: u64 = 10_000;
 
 pub fn load_admin_signer(raw: &str) -> AppResult<Signer> {
     let trimmed = raw.trim();

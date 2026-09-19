@@ -27,7 +27,9 @@ impl Config {
             }),
             registry_path: env::var("REGISTRY_PATH")
                 .map(PathBuf::from)
-                .unwrap_or_else(|_| PathBuf::from("data/registry.json")),
+                .unwrap_or_else(|_| {
+                    PathBuf::from("../../data/tokenized-stocks/registry.json")
+                }),
             hyperliquid_info_url: env::var("HYPERLIQUID_INFO_URL")
                 .unwrap_or_else(|_| "https://api.hyperliquid.xyz/info".into()),
             hyperliquid_ws_url: env::var("HYPERLIQUID_WS_URL")

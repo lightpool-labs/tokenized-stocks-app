@@ -91,6 +91,7 @@ export function ChartPanel({ market }: ChartPanelProps) {
         scaleMargins: { top: 0.08, bottom: 0.28 },
       },
       timeScale: {
+        borderVisible: false,
         borderColor: "#2a313c",
         timeVisible: true,
         secondsVisible: false,

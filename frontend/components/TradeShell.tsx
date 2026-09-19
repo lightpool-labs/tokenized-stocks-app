@@ -60,7 +60,7 @@ export function TradeShell() {
         <ChartPanel market={selected} />
       </div>
 
-      <OrderBookPanel />
+      <OrderBookPanel market={selected} />
       <OrderTicket pair={pair} selected={selected} />
       <BottomTabs />
     </div>
