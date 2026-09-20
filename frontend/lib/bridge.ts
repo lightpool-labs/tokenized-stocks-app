@@ -22,6 +22,7 @@ export type PreparedTx = {
   digest_hex: string;
   unsigned_tx_hex: string;
   eip712: Eip712Payload;
+  auth_scheme?: string | null;
 };
 
 export type BalanceEntry = {
@@ -103,6 +104,77 @@ export async function submitWithdraw(
     body: JSON.stringify({
       unsigned_tx_hex: unsignedTxHex,
       signature,
+    }),
+  });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}
+
+export async function preparePlaceOrder(body: {
+  user: string;
+  agent: string;
+  spot_market: string;
+  base_token: string;
+  quote_token: string;
+  side: string;
+  size: string;
+  price?: string;
+  order_type: string;
+}): Promise<PreparedTx> {
+  const res = await fetch(`${API_URL}/orders/prepare`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}
+
+export async function submitPlaceOrder(
+  unsignedTxHex: string,
+  signature: string,
+  authScheme = "native",
+): Promise<{ digest: string; status: string }> {
+  const res = await fetch(`${API_URL}/orders/submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      unsigned_tx_hex: unsignedTxHex,
+      signature,
+      auth_scheme: authScheme,
+    }),
+  });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}
+
+export async function prepareCancelOrder(body: {
+  user: string;
+  agent: string;
+  spot_market: string;
+  chain_order_id: string;
+}): Promise<PreparedTx> {
+  const res = await fetch(`${API_URL}/orders/cancel/prepare`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}
+
+export async function submitCancelOrder(
+  unsignedTxHex: string,
+  signature: string,
+  authScheme = "native",
+): Promise<{ digest: string; status: string }> {
+  const res = await fetch(`${API_URL}/orders/cancel/submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      unsigned_tx_hex: unsignedTxHex,
+      signature,
+      auth_scheme: authScheme,
     }),
   });
   if (!res.ok) throw new Error(await parseError(res));

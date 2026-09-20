@@ -64,7 +64,7 @@ export function TradeShell() {
 
       <OrderBookPanel market={selected} />
       <OrderTicket pair={pair} selected={selected} />
-      <BottomTabs />
+      <BottomTabs markets={markets} />
     </div>
     </WalletProvider>
   );

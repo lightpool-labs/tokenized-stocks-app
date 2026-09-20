@@ -106,8 +106,201 @@ button {
   flex-direction: column;
   min-height: 0;
   background: var(--bg-panel);
-  overflow: auto;
+  overflow: hidden;
   border-left: 1px solid var(--border);
+}
+
+/* Order form fills the chart/book row so the fund divider meets Balances. */
+.ticket-order {
+  height: var(--main-row-h);
+  max-height: var(--main-row-h);
+  min-height: var(--main-row-h);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem;
+  overflow: auto;
+  box-sizing: border-box;
+}
+
+.ticket-order-spacer {
+  flex: 1;
+  min-height: 0.5rem;
+}
+
+.ticket-fund {
+  flex: 1;
+  min-height: 0;
+  padding: 0.75rem;
+  border-top: 1px solid var(--border);
+  overflow: auto;
+}
+
+.order-type-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.order-type-tabs button {
+  width: 100%;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  padding: 0.45rem 0.35rem 0.55rem;
+  margin-bottom: -1px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.order-type-tabs button.active {
+  color: var(--text);
+  border-bottom-color: var(--buy);
+  background: transparent;
+}
+
+.order-type-tabs button:hover {
+  color: var(--text);
+}
+
+.available-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.available-value {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.size-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.size-row input {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  border-radius: var(--radius);
+  padding: 0.55rem 0.65rem;
+}
+
+.size-unit {
+  color: var(--text-muted);
+  font-size: 12px;
+  min-width: 2.5rem;
+  text-align: right;
+}
+
+.size-slider {
+  margin: 0 0 0.85rem;
+}
+
+.size-slider input[type="range"] {
+  width: 100%;
+  accent-color: var(--buy);
+}
+
+.size-slider-marks {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.25rem;
+  margin-top: 0.35rem;
+}
+
+.size-slider-marks button {
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  border-radius: var(--radius);
+  padding: 0.2rem 0;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.size-slider-marks button.active {
+  border-color: var(--buy);
+  color: var(--buy);
+}
+
+.fund-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 1rem;
+}
+
+.fund-dialog {
+  width: min(380px, 100%);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-panel);
+  padding: 1rem;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+}
+
+.fund-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.85rem;
+}
+
+.fund-dialog-header h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.fund-dialog-close {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.35rem;
+  line-height: 1;
+  padding: 0.15rem 0.35rem;
+}
+
+.fund-dialog select,
+.field select {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  border-radius: var(--radius);
+  padding: 0.55rem 0.65rem;
+  color: var(--text);
+}
+
+.fund-dialog-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+}
+
+.fund-dialog-actions button {
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  border-radius: var(--radius);
+  padding: 0.65rem 0.5rem;
+}
+
+.fund-dialog-confirm {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: #fff !important;
+  font-weight: 600;
 }
 
 .orderbook-panel {
@@ -531,15 +724,17 @@ button {
 }
 
 .side-toggle button.buy.active {
-  background: rgba(14, 203, 129, 0.18);
+  background: var(--bg-elevated);
   border-color: var(--buy);
   color: var(--buy);
+  box-shadow: inset 0 0 0 1px rgba(14, 203, 129, 0.35);
 }
 
 .side-toggle button.sell.active {
-  background: rgba(246, 70, 93, 0.18);
+  background: var(--bg-elevated);
   border-color: var(--sell);
   color: var(--sell);
+  box-shadow: inset 0 0 0 1px rgba(246, 70, 93, 0.35);
 }
 
 .field {
@@ -567,21 +762,37 @@ button {
 
 .submit-btn {
   width: 100%;
-  border: none;
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 0.7rem 0.75rem;
   font-weight: 700;
   margin-top: 0.25rem;
+  flex-shrink: 0;
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+.submit-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .submit-btn.buy {
-  background: var(--buy);
-  color: #04140d;
+  background: var(--bg-elevated);
+  border-color: var(--buy);
+  color: var(--buy);
+  box-shadow: inset 0 0 0 1px rgba(14, 203, 129, 0.35);
+}
+
+.submit-btn.buy:not(:disabled):hover {
+  background: rgba(14, 203, 129, 0.08);
 }
 
 .submit-btn.sell {
-  background: var(--sell);
-  color: #fff;
+  background: var(--bg-elevated);
+  border-color: var(--sell);
+  color: var(--sell);
+  box-shadow: inset 0 0 0 1px rgba(246, 70, 93, 0.35);
 }
 
 .fund-actions {
@@ -592,9 +803,33 @@ button {
 
 .fund-actions button {
   border: 1px solid var(--border);
-  background: var(--bg-elevated);
   border-radius: var(--radius);
-  padding: 0.65rem 0.5rem;
+  padding: 0.7rem 0.5rem;
+  font-weight: 700;
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+.fund-actions .fund-deposit {
+  background: var(--bg-elevated);
+  border-color: var(--buy);
+  color: var(--buy);
+  box-shadow: inset 0 0 0 1px rgba(14, 203, 129, 0.35);
+}
+
+.fund-actions .fund-deposit:hover:not(:disabled) {
+  background: rgba(14, 203, 129, 0.08);
+}
+
+.fund-actions .fund-withdraw {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text);
+  box-shadow: none;
+}
+
+.fund-actions .fund-withdraw:hover:not(:disabled) {
+  border-color: var(--accent);
 }
 
 .fund-actions button:disabled,
@@ -680,6 +915,31 @@ button {
 
 .empty-table td.data {
   color: var(--text);
+}
+
+.order-actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.cancel-order-btn {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  border-radius: 4px;
+  padding: 0.2rem 0.55rem;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.cancel-order-btn:hover:not(:disabled) {
+  border-color: #c45c5c;
+  color: #e07070;
+}
+
+.cancel-order-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .admin-page {
@@ -974,6 +1234,13 @@ button {
     min-height: 420px;
     border-left: none;
     border-top: 1px solid var(--border);
+    overflow: visible;
+  }
+
+  .ticket-order {
+    height: auto;
+    max-height: none;
+    min-height: 280px;
   }
 
   .bottom-tabs {

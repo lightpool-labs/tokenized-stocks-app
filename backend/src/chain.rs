@@ -1,7 +1,7 @@
 use lightpool_sdk::{
-    extract_market_address_from_events, extract_token_address_from_events, ActionBuilder,
-    CreateMarketParams, CreateTokenParams, MarketState, SegmentSize, Signer, TOKEN_SCALE,
-    TransactionBuilder,
+    extract_market_address_from_events, extract_token_address_from_events, parse_token_contract,
+    ActionBuilder, CreateMarketParams, CreateTokenParams, MarketState, SegmentSize, Signer,
+    TOKEN_SCALE, TransactionBuilder, UpdateMarketParams,
 };
 
 use crate::clob::ClobIndexClient;
@@ -133,6 +133,44 @@ pub async fn create_spot_market(
     })?;
 
     Ok((market.to_string(), response.digest))
+}
+
+pub async fn enable_market_orders(
+    clob: &ClobIndexClient,
+    signer: &Signer,
+    spot_market_hex: &str,
+) -> AppResult<String> {
+    let spot_market = parse_token_contract(spot_market_hex.trim()).map_err(|e| {
+        AppError::BadRequest(format!("invalid spot market: {e}"))
+    })?;
+
+    let action = ActionBuilder::update_market(
+        spot_market,
+        UpdateMarketParams {
+            min_order_size: None,
+            maker_fee_bps: None,
+            taker_fee_bps: None,
+            allow_market_orders: Some(true),
+            state: None,
+        },
+    )
+    .map_err(|e| AppError::Internal(format!("build update_market: {e}")))?;
+
+    let tx = TransactionBuilder::new()
+        .sender(signer.address())
+        .expiration(u64::MAX)
+        .add_action(action)
+        .build_and_sign_only(signer)
+        .map_err(|e| AppError::Internal(format!("sign update_market: {e}")))?;
+
+    let response = clob.submit_transaction(tx).await?;
+    if !response.receipt.is_success() {
+        return Err(AppError::Internal(format!(
+            "update_market failed: {:?}",
+            response.receipt.status
+        )));
+    }
+    Ok(response.digest)
 }
 
 pub async fn ensure_usdt(

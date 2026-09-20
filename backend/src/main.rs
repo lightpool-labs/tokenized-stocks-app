@@ -26,9 +26,13 @@ mod ws_bars;
 
 use bridge::get_bridge;
 use chain::{
-    addresses_equal, create_stock_market, ensure_usdt, load_admin_signer, EXPECTED_ADMIN_ADDRESS,
+    addresses_equal, create_stock_market, enable_market_orders, ensure_usdt, load_admin_signer,
+    EXPECTED_ADMIN_ADDRESS,
 };
-use user_tx::{prepare_agent, prepare_withdraw, submit_agent, submit_withdraw};
+use user_tx::{
+    prepare_agent, prepare_cancel_order, prepare_place_order, prepare_withdraw, submit_agent,
+    submit_place_order, submit_withdraw,
+};
 use config::Config;
 use error::{AppError, AppResult};
 use hyperliquid::BarsResponse;
@@ -134,6 +138,7 @@ async fn main() {
                 .route("/cash", get(get_cash))
                 .route("/admin/ensure-cash", post(ensure_cash))
                 .route("/admin/markets", post(create_market))
+                .route("/admin/enable-market-orders", post(enable_all_market_orders))
                 .route("/markets", get(list_markets))
                 .route("/markets/:symbol/bars", get(get_bars))
                 .route("/markets/:id", get(get_market))
@@ -142,7 +147,11 @@ async fn main() {
                 .route("/agent/prepare", post(prepare_agent))
                 .route("/agent/submit", post(submit_agent))
                 .route("/withdraw/prepare", post(prepare_withdraw))
-                .route("/withdraw/submit", post(submit_withdraw)),
+                .route("/withdraw/submit", post(submit_withdraw))
+                .route("/orders/prepare", post(prepare_place_order))
+                .route("/orders/submit", post(submit_place_order))
+                .route("/orders/cancel/prepare", post(prepare_cancel_order))
+                .route("/orders/cancel/submit", post(submit_place_order)),
         )
         .layer(cors)
         .layer(TraceLayer::new_for_http())
@@ -274,6 +283,42 @@ async fn create_market(
     }
 
     Ok((StatusCode::CREATED, Json(record)))
+}
+
+#[derive(Serialize)]
+struct EnableMarketOrdersResponse {
+    updated: Vec<EnableMarketOrdersItem>,
+}
+
+#[derive(Serialize)]
+struct EnableMarketOrdersItem {
+    symbol: String,
+    spot_market: String,
+    digest: String,
+}
+
+async fn enable_all_market_orders(
+    State(state): State<AppState>,
+) -> AppResult<Json<EnableMarketOrdersResponse>> {
+    let markets = {
+        let registry = state.registry.lock().await;
+        registry.markets.clone()
+    };
+    let mut updated = Vec::new();
+    for market in markets {
+        let digest = enable_market_orders(
+            &state.clob,
+            state.admin.as_ref(),
+            &market.spot_market,
+        )
+        .await?;
+        updated.push(EnableMarketOrdersItem {
+            symbol: market.symbol,
+            spot_market: market.spot_market,
+            digest,
+        });
+    }
+    Ok(Json(EnableMarketOrdersResponse { updated }))
 }
 
 async fn list_markets(State(state): State<AppState>) -> Json<MarketsResponse> {

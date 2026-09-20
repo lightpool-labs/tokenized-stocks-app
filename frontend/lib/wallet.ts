@@ -76,6 +76,10 @@ function readAgent(user: string): StoredAgent | null {
   }
 }
 
+export function getAgent(user: string): StoredAgent | null {
+  return readAgent(user);
+}
+
 function writeAgent(user: string, agent: StoredAgent) {
   sessionStorage.setItem(agentStorageKey(user), JSON.stringify(agent));
 }
@@ -240,7 +244,7 @@ async function sendAndWait(tx: {
   throw new Error("timed out waiting for the transaction receipt");
 }
 
-export async function depositUsdt(input: {
+export async function depositToken(input: {
   from: string;
   token: string;
   bridge: string;
@@ -271,3 +275,6 @@ export async function depositUsdt(input: {
     gas: "0xf4240",
   });
 }
+
+/** @deprecated Use depositToken */
+export const depositUsdt = depositToken;
