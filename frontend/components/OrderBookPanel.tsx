@@ -3,12 +3,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Market } from "@/lib/api";
 import {
+  fetchMarketTrades,
   subscribeOrderBook,
   type BookLevel,
   type BookResponse,
+  type MarketTrade,
 } from "@/lib/orderbook";
 
-const BOOK_DEPTH = 10;
+const BOOK_DISPLAY_DEPTH = 10;
+const BOOK_FETCH_DEPTH = 20;
 
 type OrderBookPanelProps = {
   market: Market | null;
@@ -159,6 +162,39 @@ function DepthRows({
   );
 }
 
+function formatTradeTime(timeMs: number): string {
+  const date = new Date(timeMs);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleTimeString("en-US", { hour12: false });
+}
+
+function TradesTable({ trades }: { trades: MarketTrade[] }) {
+  if (trades.length === 0) {
+    return <div className="trades-empty">No trades yet</div>;
+  }
+  return (
+    <table className="book-table trades-table">
+      <thead>
+        <tr>
+          <th>Price</th>
+          <th>Size</th>
+          <th>Time</th>
+        </tr>
+      </thead>
+      <tbody>
+        {trades.map((trade) => (
+          <tr key={trade.id}>
+            <td className={trade.side === "sell" ? "ask" : "bid"}>
+              {formatPrice(trade.price)}
+            </td>
+            <td>{formatSize(trade.size)}</td>
+            <td>{formatTradeTime(trade.time_ms)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
 function sizeDirection(before: string | undefined, after: string): "up" | "down" | null {
   if (before === undefined) return "up";
   const prev = parseNum(before);
@@ -168,7 +204,9 @@ function sizeDirection(before: string | undefined, after: string): "up" | "down"
 }
 
 export function OrderBookPanel({ market }: OrderBookPanelProps) {
+  const [tab, setTab] = useState<"book" | "trades">("book");
   const [book, setBook] = useState<BookResponse>(emptyBook);
+  const [trades, setTrades] = useState<MarketTrade[]>([]);
   const [status, setStatus] = useState<string>("Select a market");
   const [error, setError] = useState<string | null>(null);
   const [flashes, setFlashes] = useState<Record<string, LevelFlash>>({});
@@ -179,22 +217,37 @@ export function OrderBookPanel({ market }: OrderBookPanelProps) {
 
   useEffect(() => {
     const spotMarket = market?.spot_market?.trim();
+    const symbol = market?.symbol?.trim();
     if (!spotMarket) {
       setBook(emptyBook());
+      setTrades([]);
       setStatus("Select a market");
       setError(null);
       return;
     }
 
     setBook(emptyBook());
+    setTrades([]);
     setStatus("Loading…");
     setError(null);
 
-    const unsubscribe = subscribeOrderBook(spotMarket, BOOK_DEPTH, {
+    if (symbol) {
+      void fetchMarketTrades(symbol)
+        .then((rows) => setTrades(rows))
+        .catch(() => setTrades([]));
+    }
+
+    const unsubscribe = subscribeOrderBook(spotMarket, BOOK_FETCH_DEPTH, {
       onBook: (next) => {
         setBook(next);
         setStatus("Live");
         setError(null);
+      },
+      onTrade: (trade) => {
+        setTrades((current) => {
+          if (current.some((row) => row.id === trade.id)) return current;
+          return [trade, ...current].slice(0, 50);
+        });
       },
       onError: (err) => {
         setError(err.message);
@@ -205,7 +258,7 @@ export function OrderBookPanel({ market }: OrderBookPanelProps) {
     return () => {
       unsubscribe();
     };
-  }, [market?.spot_market]);
+  }, [market?.spot_market, market?.symbol]);
 
   useEffect(() => {
     prevSizes.current = null;
@@ -245,24 +298,39 @@ export function OrderBookPanel({ market }: OrderBookPanelProps) {
   }, [book]);
 
   const asksDisplay = useMemo(() => {
-    const withTotals = withCumulativeTotals(book.asks);
+    const withTotals = withCumulativeTotals(book.asks.slice(0, BOOK_DISPLAY_DEPTH));
     return [...withTotals].reverse();
   }, [book.asks]);
 
   const bidsDisplay = useMemo(
-    () => withCumulativeTotals(book.bids),
+    () => withCumulativeTotals(book.bids.slice(0, BOOK_DISPLAY_DEPTH)),
     [book.bids],
   );
 
   return (
-    <section className="panel orderbook-panel">
-      <div className="panel-header">
-        <span>Order book</span>
-        <span className="book-status" title={error ?? status}>
-          {error ? "Error" : status}
-        </span>
+    <section className="panel orderbook-panel" title={error ?? status}>
+      <div className="order-type-tabs">
+        <button
+          type="button"
+          className={tab === "book" ? "active" : ""}
+          onClick={() => setTab("book")}
+        >
+          Order book
+        </button>
+        <button
+          type="button"
+          className={tab === "trades" ? "active" : ""}
+          onClick={() => setTab("trades")}
+        >
+          Trades
+        </button>
       </div>
       <div className="panel-body book-body">
+        {tab === "trades" ? (
+          <div className="trades-body">
+            <TradesTable trades={trades} />
+          </div>
+        ) : (
         <div className="book-split">
           <div className="book-side book-asks">
             <table className="book-table">
@@ -289,6 +357,7 @@ export function OrderBookPanel({ market }: OrderBookPanelProps) {
             </table>
           </div>
         </div>
+        )}
       </div>
     </section>
   );

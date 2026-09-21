@@ -238,6 +238,7 @@ export function OrderTicket({ pair, selected }: OrderTicketProps) {
           </button>
         </div>
 
+        <div className="ticket-order-body">
         <div className="side-toggle">
           <button
             type="button"
@@ -337,6 +338,7 @@ export function OrderTicket({ pair, selected }: OrderTicketProps) {
         </button>
         {status ? <p className="fund-status">{status}</p> : null}
         {error ? <p className="fund-status error">{error}</p> : null}
+        </div>
       </div>
 
       <div className="ticket-fund">

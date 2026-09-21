@@ -369,6 +369,7 @@ pub async fn prepare_place_order(
     let action = ActionBuilder::place_order(
         spot_market,
         PlaceOrderParams {
+            cloid: None,
             side,
             amount,
             order_type,

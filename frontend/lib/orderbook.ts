@@ -20,6 +20,16 @@ type OrderBookDeltaMsg = {
   bids: BookLevel[];
   asks: BookLevel[];
   last_trade_price?: string | null;
+  trade?: MarketTrade | null;
+};
+
+export type MarketTrade = {
+  id: number;
+  side: string;
+  price: string;
+  size: string;
+  time_ms: number;
+  block_num: number;
 };
 
 type OrderBookSnapshotMsg = BookResponse & {
@@ -101,6 +111,16 @@ export async function fetchBookSnapshot(
   return res.json() as Promise<BookResponse>;
 }
 
+export async function fetchMarketTrades(symbol: string): Promise<MarketTrade[]> {
+  const res = await fetch(
+    `${CLOB_INDEX_URL}/api/markets/${encodeURIComponent(symbol)}/trades`,
+  );
+  if (!res.ok) {
+    throw new Error(`Trades ${res.status}`);
+  }
+  return res.json() as Promise<MarketTrade[]>;
+}
+
 function isSnapshotMessage(
   payload: { type?: string },
 ): payload is OrderBookSnapshotMsg {
@@ -118,6 +138,7 @@ export function subscribeOrderBook(
   depth: number,
   handlers: {
     onBook: (book: BookResponse) => void;
+    onTrade?: (trade: MarketTrade) => void;
     onError?: (error: Error) => void;
   },
 ): () => void {
@@ -202,6 +223,9 @@ export function subscribeOrderBook(
 
         if (payload.type === "orderbook_delta") {
           const delta = payload as OrderBookDeltaMsg;
+          if (delta.trade) {
+            handlers.onTrade?.(delta.trade);
+          }
           if (!currentBook) {
             currentBook = {
               sequence: delta.sequence,
