@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use axum::extract::ws::{Message, WebSocket};
 use futures_util::{SinkExt, StreamExt};
@@ -9,6 +10,9 @@ use tokio_tungstenite::{connect_async, tungstenite::Message as TsMessage};
 use crate::hyperliquid::{
     bar_from_hl_json, hl_coin_for_symbol, normalize_interval, normalize_symbol, Bar,
 };
+
+const HL_RECONNECT_BASE_MS: u64 = 500;
+const HL_RECONNECT_MAX_MS: u64 = 15_000;
 
 #[derive(Debug, Deserialize)]
 struct ClientMessage {
@@ -107,27 +111,14 @@ pub async fn handle_client_socket(socket: WebSocket, hl_ws_url: Arc<String>) {
                         let hl_coin_task = hl_coin.clone();
 
                         let handle = tokio::spawn(async move {
-                            if let Err(e) = bridge_hl_candles(
+                            bridge_hl_candles_with_reconnect(
                                 &url,
                                 &symbol_task,
                                 &hl_coin_task,
                                 &interval_task,
-                                out.clone(),
+                                out,
                             )
-                            .await
-                            {
-                                let _ = out.send(
-                                    serde_json::to_string(&ServerNotice {
-                                        channel: "bars",
-                                        event: "error",
-                                        message: Some(e),
-                                        symbol: Some(symbol_task),
-                                        hl_coin: Some(hl_coin_task),
-                                        interval: Some(interval_task),
-                                    })
-                                    .unwrap_or_default(),
-                                );
-                            }
+                            .await;
                         });
 
                         let _ = out_tx.send(
@@ -190,6 +181,122 @@ fn notice_error(message: String) -> String {
         interval: None,
     })
     .unwrap_or_default()
+}
+
+fn notice_status(
+    event: &'static str,
+    message: impl Into<String>,
+    symbol: &str,
+    hl_coin: &str,
+    interval: &str,
+) -> String {
+    serde_json::to_string(&ServerNotice {
+        channel: "bars",
+        event,
+        message: Some(message.into()),
+        symbol: Some(symbol.to_string()),
+        hl_coin: Some(hl_coin.to_string()),
+        interval: Some(interval.to_string()),
+    })
+    .unwrap_or_default()
+}
+
+fn is_transient_hl_error(err: &str) -> bool {
+    let lower = err.to_ascii_lowercase();
+    lower.contains("connection reset")
+        || lower.contains("without closing handshake")
+        || lower.contains("broken pipe")
+        || lower.contains("timed out")
+        || lower.contains("timeout")
+        || lower.contains("temporarily unavailable")
+        || lower.contains("connection closed")
+        || lower.contains("eof")
+        || lower.contains("reset by peer")
+}
+
+async fn bridge_hl_candles_with_reconnect(
+    hl_ws_url: &str,
+    symbol: &str,
+    hl_coin: &str,
+    interval: &str,
+    out_tx: tokio::sync::mpsc::UnboundedSender<String>,
+) {
+    let mut attempt: u32 = 0;
+    loop {
+        match bridge_hl_candles(hl_ws_url, symbol, hl_coin, interval, out_tx.clone()).await {
+            Ok(()) => {
+                // Clean close from HL side — reconnect after a short pause.
+                attempt = attempt.saturating_add(1);
+                let delay = reconnect_delay_ms(attempt);
+                let _ = out_tx.send(notice_status(
+                    "reconnecting",
+                    format!("Hyperliquid candle feed closed; retrying in {delay}ms"),
+                    symbol,
+                    hl_coin,
+                    interval,
+                ));
+                tokio::time::sleep(Duration::from_millis(delay)).await;
+            }
+            Err(e) => {
+                if out_tx.is_closed() {
+                    break;
+                }
+                attempt = attempt.saturating_add(1);
+                let delay = reconnect_delay_ms(attempt);
+                if is_transient_hl_error(&e) {
+                    tracing::warn!(
+                        error = %e,
+                        attempt,
+                        delay_ms = delay,
+                        hl_coin,
+                        interval,
+                        "Hyperliquid WS transient error; reconnecting"
+                    );
+                    let _ = out_tx.send(notice_status(
+                        "reconnecting",
+                        format!("Live feed interrupted; retrying in {delay}ms"),
+                        symbol,
+                        hl_coin,
+                        interval,
+                    ));
+                } else {
+                    tracing::warn!(
+                        error = %e,
+                        attempt,
+                        delay_ms = delay,
+                        hl_coin,
+                        interval,
+                        "Hyperliquid WS error; reconnecting"
+                    );
+                    let _ = out_tx.send(notice_status(
+                        "reconnecting",
+                        format!("Live feed error; retrying in {delay}ms"),
+                        symbol,
+                        hl_coin,
+                        interval,
+                    ));
+                }
+                tokio::time::sleep(Duration::from_millis(delay)).await;
+            }
+        }
+
+        if out_tx.is_closed() {
+            break;
+        }
+
+        let _ = out_tx.send(notice_status(
+            "subscribed",
+            "Live feed reconnected",
+            symbol,
+            hl_coin,
+            interval,
+        ));
+    }
+}
+
+fn reconnect_delay_ms(attempt: u32) -> u64 {
+    let shift = attempt.saturating_sub(1).min(5);
+    (HL_RECONNECT_BASE_MS.saturating_mul(1u64 << shift)).min(HL_RECONNECT_MAX_MS)
 }
 
 async fn bridge_hl_candles(

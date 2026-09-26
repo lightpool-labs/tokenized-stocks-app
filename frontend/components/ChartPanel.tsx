@@ -150,16 +150,20 @@ export function ChartPanel({ market }: ChartPanelProps) {
     };
   }, []);
 
-  useEffect(() => {
+    useEffect(() => {
     const series = seriesRef.current;
     const volume = volumeRef.current;
     if (!series || !volume) return;
+    const candleSeries = series;
+    const volumeSeries = volume;
 
     let cancelled = false;
     let socket: WebSocket | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let clientAttempt = 0;
 
-    series.setData([]);
-    volume.setData([]);
+    candleSeries.setData([]);
+    volumeSeries.setData([]);
     setHlCoin(null);
     setError(null);
 
@@ -170,6 +174,97 @@ export function ChartPanel({ market }: ChartPanelProps) {
 
     const symbol = market.symbol;
     setStatus(`Loading history for xyz:${symbol}…`);
+
+    function clearReconnectTimer() {
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+    }
+
+    function connectLive() {
+      if (cancelled) return;
+      const ws = new WebSocket(barsWsUrl());
+      socket = ws;
+
+      ws.onopen = () => {
+        clientAttempt = 0;
+        ws.send(
+          JSON.stringify({
+            op: "subscribe",
+            channel: "bars",
+            symbol,
+            interval,
+          }),
+        );
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(String(event.data)) as {
+            channel?: string;
+            event?: string;
+            message?: string;
+            bar?: Bar;
+            hl_coin?: string;
+          };
+          if (msg.channel !== "bars") return;
+
+          if (msg.event === "reconnecting") {
+            setError(null);
+            setStatus(msg.message ?? "Reconnecting live feed…");
+            return;
+          }
+
+          if (msg.event === "error") {
+            const text = msg.message ?? "Live bars error";
+            if (/connection reset|closing handshake|reconnect/i.test(text)) {
+              setError(null);
+              setStatus("Live feed interrupted · retrying…");
+            } else {
+              setError(text);
+            }
+            return;
+          }
+
+          if (msg.event === "subscribed") {
+            if (msg.hl_coin) setHlCoin(msg.hl_coin);
+            setError(null);
+            setStatus(
+              `Live · ${msg.hl_coin ?? `xyz:${symbol}`} · ${interval}`,
+            );
+            return;
+          }
+
+          if (msg.bar) {
+            const candle = toCandle(msg.bar);
+            const vol = toVolume(msg.bar);
+            if (candle) candleSeries.update(candle);
+            if (vol) volumeSeries.update(vol);
+          }
+        } catch {
+          // ignore malformed frames
+        }
+      };
+
+      ws.onerror = () => {
+        if (!cancelled) {
+          setError(null);
+          setStatus("Live socket error · retrying…");
+        }
+      };
+
+      ws.onclose = () => {
+        if (cancelled) return;
+        clientAttempt += 1;
+        const delay = Math.min(15_000, 500 * 2 ** Math.min(clientAttempt - 1, 5));
+        setStatus(`Live disconnected · retrying in ${Math.round(delay / 1000)}s…`);
+        clearReconnectTimer();
+        reconnectTimer = setTimeout(() => {
+          if (!cancelled) connectLive();
+        }, delay);
+      };
+    }
 
     async function load() {
       try {
@@ -187,8 +282,8 @@ export function ChartPanel({ market }: ChartPanelProps) {
           }
         }
 
-        series.setData(candles);
-        volume.setData(volumes);
+        candleSeries.setData(candles);
+        volumeSeries.setData(volumes);
 
         const chart = chartRef.current;
         if (chart) {
@@ -209,53 +304,11 @@ export function ChartPanel({ market }: ChartPanelProps) {
             : "No history bars yet · waiting for live…",
         );
 
-        socket = new WebSocket(barsWsUrl());
-        socket.onopen = () => {
-          socket?.send(
-            JSON.stringify({
-              op: "subscribe",
-              channel: "bars",
-              symbol,
-              interval,
-            }),
-          );
-        };
-        socket.onmessage = (event) => {
-          try {
-            const msg = JSON.parse(String(event.data)) as {
-              channel?: string;
-              event?: string;
-              message?: string;
-              bar?: Bar;
-              hl_coin?: string;
-            };
-            if (msg.channel !== "bars") return;
-            if (msg.event === "error") {
-              setError(msg.message ?? "Live bars error");
-              return;
-            }
-            if (msg.event === "subscribed" && msg.hl_coin) {
-              setHlCoin(msg.hl_coin);
-              setStatus(`Live · ${msg.hl_coin} · ${interval}`);
-              return;
-            }
-            if (msg.bar) {
-              const candle = toCandle(msg.bar);
-              const vol = toVolume(msg.bar);
-              if (candle) series.update(candle);
-              if (vol) volume.update(vol);
-            }
-          } catch {
-            // ignore malformed frames
-          }
-        };
-        socket.onerror = () => {
-          if (!cancelled) setError("WebSocket error");
-        };
+        connectLive();
       } catch (err) {
         if (!cancelled) {
-          series.setData([]);
-          volume.setData([]);
+          candleSeries.setData([]);
+          volumeSeries.setData([]);
           setError(err instanceof Error ? err.message : "Failed to load bars");
           setStatus("History failed");
         }
@@ -266,17 +319,28 @@ export function ChartPanel({ market }: ChartPanelProps) {
 
     return () => {
       cancelled = true;
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(
-          JSON.stringify({
-            op: "unsubscribe",
-            channel: "bars",
-            symbol,
-            interval,
-          }),
-        );
+      clearReconnectTimer();
+      if (socket) {
+        socket.onclose = null;
+        socket.onerror = null;
+        socket.onmessage = null;
+        if (socket.readyState === WebSocket.OPEN) {
+          try {
+            socket.send(
+              JSON.stringify({
+                op: "unsubscribe",
+                channel: "bars",
+                symbol,
+                interval,
+              }),
+            );
+          } catch {
+            // ignore
+          }
+        }
+        socket.close();
       }
-      socket?.close();
+      socket = null;
     };
   }, [market, interval]);
 

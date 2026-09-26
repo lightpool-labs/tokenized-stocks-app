@@ -94,7 +94,7 @@ export default function AdminPage() {
       <main className="admin-page">
         <h1>Admin</h1>
         <p className="lead">
-          Create cash USDT first, then create a stock token and its SYMBOL/USDT
+          Create cash USDT first, then create a stock token and its SYMBOL_USDT
           spot market. Signed by the LightPool validator (Anvil #0) on the
           backend.
         </p>
@@ -121,7 +121,7 @@ export default function AdminPage() {
         <section className="admin-card">
           <h2>Create stock market</h2>
           <p>
-            Creates the stock token, then the SYMBOL/USDT spot market on
+            Creates the stock token, then the SYMBOL_USDT spot market on
             LightPool (ensures USDT first if needed).
           </p>
           <form className="admin-form" onSubmit={onCreateMarket}>

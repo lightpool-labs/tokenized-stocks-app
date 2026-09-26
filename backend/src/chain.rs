@@ -199,7 +199,7 @@ pub async fn create_stock_market(
 
     let base = parse_contract_address(&base_token)?;
     let quote = parse_contract_address(quote_token_hex)?;
-    let pair = format!("{symbol}/USDT");
+    let pair = format!("{symbol}_USDT");
 
     let (spot_market, _market_digest) =
         create_spot_market(clob, signer, &pair, base, quote).await?;

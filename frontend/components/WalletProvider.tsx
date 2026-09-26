@@ -26,9 +26,7 @@ import {
 } from "@/lib/bridge";
 import { signDigestNative } from "@/lib/agentSign";
 import {
-  fetchUserOrders,
-  isHistoryStatus,
-  isOpenStatus,
+  refreshUserOrderTabs,
   subscribeUserOrders,
   type ListedOrder,
   type TradeFill,
@@ -169,10 +167,28 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     void loadBridge().catch(() => undefined);
   }, [loadBridge]);
 
-  const applyOrders = useCallback((orders: ListedOrder[]) => {
-    setOpenOrders(orders.filter((order) => isOpenStatus(order.status)));
-    setOrderHistory(orders.filter((order) => isHistoryStatus(order.status)));
-  }, []);
+  const applyOrderTabs = useCallback(
+    (tabs: {
+      openOrders: ListedOrder[];
+      orderHistory: ListedOrder[];
+      trades: TradeFill[];
+    }) => {
+      setOpenOrders(tabs.openOrders);
+      setOrderHistory(tabs.orderHistory);
+      setTradeHistory((prev) => {
+        if (prev.length === 0) return tabs.trades;
+        const seen = new Set(prev.map((item) => item.id));
+        const merged = [...prev];
+        for (const trade of tabs.trades) {
+          if (seen.has(trade.id)) continue;
+          seen.add(trade.id);
+          merged.push(trade);
+        }
+        return merged;
+      });
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!address) {
@@ -184,10 +200,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     }
     setTradingEnabled(sessionStorage.getItem(tradingKey(address)) === "1");
     return subscribeUserOrders(address, {
-      onOrders: applyOrders,
+      onOpenOrders: setOpenOrders,
+      onOrderHistory: setOrderHistory,
       onTrades: setTradeHistory,
     });
-  }, [address, applyOrders]);
+  }, [address]);
 
   const refreshBalances = useCallback(async () => {
     const account = address;
@@ -311,8 +328,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         setBalances(alignBalances(config.tokens, entries));
         watchBalances(account, config.tokens, setBalances);
         try {
-          const listed = await fetchUserOrders(account);
-          applyOrders(listed);
+          applyOrderTabs(await refreshUserOrderTabs(account));
         } catch {
           // WS subscription still updates when the index catches up.
         }
@@ -324,7 +340,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         end();
       }
     },
-    [applyOrders, begin, end, loadBridge, requireAccount],
+    [applyOrderTabs, begin, end, loadBridge, requireAccount],
   );
 
   const cancelOrder = useCallback(
@@ -364,8 +380,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         setBalances(alignBalances(config.tokens, entries));
         watchBalances(account, config.tokens, setBalances);
         try {
-          const listed = await fetchUserOrders(account);
-          applyOrders(listed);
+          applyOrderTabs(await refreshUserOrderTabs(account));
         } catch {
           // WS subscription still updates when the index catches up.
         }
@@ -377,7 +392,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         end();
       }
     },
-    [applyOrders, begin, end, loadBridge, requireAccount],
+    [applyOrderTabs, begin, end, loadBridge, requireAccount],
   );
 
   const deposit = useCallback(

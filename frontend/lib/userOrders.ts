@@ -18,6 +18,8 @@ export type ListedOrder = {
   user_address?: string;
   size_raw?: number;
   filled_raw?: number;
+  /** Archive time from indexer (unix ms). */
+  status_ts_ms?: number;
 };
 
 export type TradeFill = {
@@ -77,6 +79,8 @@ const HISTORY_STATUSES = new Set([
   "failed",
 ]);
 
+const TOKEN_SCALE = 1_000_000;
+
 export function isOpenStatus(status: string): boolean {
   return OPEN_STATUSES.has(status.trim().toLowerCase());
 }
@@ -85,13 +89,7 @@ export function isHistoryStatus(status: string): boolean {
   return HISTORY_STATUSES.has(status.trim().toLowerCase());
 }
 
-export async function fetchUserOrders(
-  userAddress: string,
-): Promise<ListedOrder[]> {
-  const res = await fetch(
-    `${CLOB_INDEX_URL}/api/orders?user_address=${encodeURIComponent(userAddress)}`,
-    { cache: "no-store" },
-  );
+async function parseOrdersResponse(res: Response): Promise<ListedOrder[]> {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(
@@ -99,6 +97,102 @@ export async function fetchUserOrders(
     );
   }
   return res.json() as Promise<ListedOrder[]>;
+}
+
+/** Live open / partial orders (hot index). */
+export async function fetchOpenOrders(
+  userAddress: string,
+): Promise<ListedOrder[]> {
+  const q = `user_address=${encodeURIComponent(userAddress)}`;
+  const res = await fetch(`${CLOB_INDEX_URL}/api/orders/openOrders?${q}`, {
+    cache: "no-store",
+  });
+  if (res.status === 404) {
+    const fallback = await fetch(`${CLOB_INDEX_URL}/api/orders?${q}`, {
+      cache: "no-store",
+    });
+    return parseOrdersResponse(fallback);
+  }
+  return parseOrdersResponse(res);
+}
+
+/** Terminal orders from sqlite history (filled / cancelled / …). */
+export async function fetchHistoricalOrders(
+  userAddress: string,
+): Promise<ListedOrder[]> {
+  const q = `user_address=${encodeURIComponent(userAddress)}`;
+  const res = await fetch(
+    `${CLOB_INDEX_URL}/api/orders/historicalOrders?${q}`,
+    { cache: "no-store" },
+  );
+  return parseOrdersResponse(res);
+}
+
+/** @deprecated Prefer fetchOpenOrders + fetchHistoricalOrders. */
+export async function fetchUserOrders(
+  userAddress: string,
+): Promise<ListedOrder[]> {
+  return fetchOpenOrders(userAddress);
+}
+
+function formatRawAmount(raw: number): string {
+  if (!Number.isFinite(raw) || raw < 0) return "—";
+  const whole = Math.floor(raw / TOKEN_SCALE);
+  const frac = raw % TOKEN_SCALE;
+  if (frac === 0) return String(whole);
+  return `${whole}.${String(frac).padStart(6, "0").replace(/0+$/, "")}`;
+}
+
+function fillSizeFromOrder(order: ListedOrder): string | null {
+  if (typeof order.filled_raw === "number" && order.filled_raw > 0) {
+    return formatRawAmount(order.filled_raw);
+  }
+  const status = order.status.trim().toLowerCase();
+  if (status === "filled" && order.size && order.size !== "—") {
+    return order.size;
+  }
+  return null;
+}
+
+/** Stable fill id shared by HTTP history rows and live WS trades. */
+function fillTradeId(
+  chainOrderId: string,
+  side: string,
+  price: string,
+  size: string,
+): string {
+  return `fill:${chainOrderId.trim().toLowerCase()}:${side}:${price}:${size}`;
+}
+
+/** Trade rows for refresh / snapshot — only from historicalOrders (filled size > 0). */
+export function tradesFromHistoricalOrders(
+  orders: ListedOrder[],
+): TradeFill[] {
+  const out: TradeFill[] = [];
+  for (const order of orders) {
+    const size = fillSizeFromOrder(order);
+    if (!size) continue;
+    const spot = order.spot_market ?? "";
+    const chain = order.chain_order_id ?? "";
+    const time =
+      typeof order.status_ts_ms === "number" && order.status_ts_ms > 0
+        ? new Date(order.status_ts_ms).toISOString()
+        : "";
+    out.push({
+      id: fillTradeId(chain, order.side, order.price, size),
+      order_id: order.id,
+      chain_order_id: chain,
+      spot_market: spot,
+      market_slug: order.market_slug,
+      side: order.side,
+      price: order.price,
+      size,
+      fee: "—",
+      time,
+      is_fully_filled: order.status.trim().toLowerCase() === "filled",
+    });
+  }
+  return out;
 }
 
 function upsertOrder(orders: ListedOrder[], next: ListedOrder): ListedOrder[] {
@@ -113,6 +207,18 @@ function upsertOrder(orders: ListedOrder[], next: ListedOrder): ListedOrder[] {
   const copy = orders.slice();
   copy[index] = { ...copy[index], ...next };
   return copy;
+}
+
+function removeOrder(orders: ListedOrder[], next: ListedOrder): ListedOrder[] {
+  return orders.filter(
+    (item) =>
+      !(
+        item.id === next.id ||
+        (item.chain_order_id &&
+          item.chain_order_id === next.chain_order_id &&
+          item.spot_market === next.spot_market)
+      ),
+  );
 }
 
 function orderFromWs(message: OrderWsMessage): ListedOrder | null {
@@ -135,33 +241,57 @@ function orderFromWs(message: OrderWsMessage): ListedOrder | null {
 
 function tradeFromWs(message: TradeWsMessage): TradeFill | null {
   if (!message.order_id || !message.fill_amount) return null;
-  const spot = message.spot_market ?? "";
   const chain = message.chain_order_id ?? "";
+  const side = message.side ?? "—";
+  const price = message.price ?? "—";
+  const size = message.fill_amount;
   return {
-    id: `${chain}:${message.block_num ?? 0}:${message.fill_amount}:${message.price ?? ""}`,
+    id: fillTradeId(chain, side, price, size),
     order_id: message.order_id,
     chain_order_id: chain,
-    spot_market: spot,
+    spot_market: message.spot_market ?? "",
     market_slug: message.market_slug,
-    side: message.side ?? "—",
-    price: message.price ?? "—",
-    size: message.fill_amount,
+    side,
+    price,
+    size,
     fee: "—",
     time: new Date().toISOString(),
     is_fully_filled: message.is_fully_filled,
   };
 }
 
+/** Upsert by stable fill id; keep a non-empty time when present. */
+function upsertTrade(trades: TradeFill[], next: TradeFill): TradeFill[] {
+  const index = trades.findIndex((item) => item.id === next.id);
+  if (index < 0) return [next, ...trades];
+  const prev = trades[index];
+  const copy = trades.slice();
+  copy[index] = {
+    ...prev,
+    ...next,
+    time: next.time || prev.time,
+  };
+  return copy;
+}
+
+export type UserOrdersHandlers = {
+  onOpenOrders: (orders: ListedOrder[]) => void;
+  onOrderHistory: (orders: ListedOrder[]) => void;
+  onTrades: (trades: TradeFill[]) => void;
+  onError?: (error: Error) => void;
+};
+
+/**
+ * Orders: HTTP open + historical; live WS `order` updates those lists only.
+ * Trades: HTTP historical fills on snapshot; live WS `trade` only (not derived from order).
+ */
 export function subscribeUserOrders(
   userAddress: string,
-  handlers: {
-    onOrders: (orders: ListedOrder[]) => void;
-    onTrades: (trades: TradeFill[]) => void;
-    onError?: (error: Error) => void;
-  },
+  handlers: UserOrdersHandlers,
 ): () => void {
   let closed = false;
-  let orders: ListedOrder[] = [];
+  let openOrders: ListedOrder[] = [];
+  let orderHistory: ListedOrder[] = [];
   let trades: TradeFill[] = [];
   let socket: WebSocket | null = null;
   let rafId: number | null = null;
@@ -173,14 +303,28 @@ export function subscribeUserOrders(
     rafId = window.requestAnimationFrame(() => {
       pending = false;
       if (closed) return;
-      handlers.onOrders(orders);
+      handlers.onOpenOrders(openOrders);
+      handlers.onOrderHistory(orderHistory);
       handlers.onTrades(trades);
     });
   }
 
   async function loadSnapshot() {
     try {
-      orders = await fetchUserOrders(userAddress);
+      const [open, historical] = await Promise.all([
+        fetchOpenOrders(userAddress),
+        fetchHistoricalOrders(userAddress),
+      ]);
+      if (closed) return;
+      openOrders = open.filter((order) => isOpenStatus(order.status));
+      orderHistory = historical.filter((order) =>
+        isHistoryStatus(order.status),
+      );
+      // Snapshot is source of truth for past fills; keep live WS fills not yet archived.
+      const fromHistory = tradesFromHistoricalOrders(orderHistory);
+      const histIds = new Set(fromHistory.map((t) => t.id));
+      const livePending = trades.filter((t) => !histIds.has(t.id));
+      trades = [...livePending, ...fromHistory];
       schedule();
     } catch (error) {
       handlers.onError?.(
@@ -219,17 +363,24 @@ export function subscribeUserOrders(
 
       if (payload.type === "order") {
         const order = orderFromWs(payload as OrderWsMessage);
-        if (order) {
-          orders = upsertOrder(orders, order);
-          schedule();
+        if (!order) return;
+        if (isOpenStatus(order.status)) {
+          openOrders = upsertOrder(openOrders, order);
+          orderHistory = removeOrder(orderHistory, order);
+        } else if (isHistoryStatus(order.status)) {
+          openOrders = removeOrder(openOrders, order);
+          orderHistory = upsertOrder(orderHistory, order);
+        } else {
+          openOrders = upsertOrder(openOrders, order);
         }
+        schedule();
         return;
       }
 
       if (payload.type === "trade") {
         const fill = tradeFromWs(payload as TradeWsMessage);
-        if (fill && !trades.some((item) => item.id === fill.id)) {
-          trades = [fill, ...trades];
+        if (fill) {
+          trades = upsertTrade(trades, fill);
           schedule();
         }
       }
@@ -261,5 +412,26 @@ export function subscribeUserOrders(
       socket.close();
     }
     socket = null;
+  };
+}
+
+/** One-shot refresh after place/cancel (does not touch the WS). */
+export async function refreshUserOrderTabs(userAddress: string): Promise<{
+  openOrders: ListedOrder[];
+  orderHistory: ListedOrder[];
+  trades: TradeFill[];
+}> {
+  const [open, historical] = await Promise.all([
+    fetchOpenOrders(userAddress),
+    fetchHistoricalOrders(userAddress),
+  ]);
+  const openOrders = open.filter((order) => isOpenStatus(order.status));
+  const orderHistory = historical.filter((order) =>
+    isHistoryStatus(order.status),
+  );
+  return {
+    openOrders,
+    orderHistory,
+    trades: tradesFromHistoricalOrders(orderHistory),
   };
 }

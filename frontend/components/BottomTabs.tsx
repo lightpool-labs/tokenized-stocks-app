@@ -54,11 +54,11 @@ function marketLabel(
 }
 
 function formatPrice(raw: string): string {
-  const cents = Number.parseFloat(raw);
-  if (!Number.isFinite(cents)) return raw || "—";
-  return (cents / 100).toLocaleString("en-US", {
+  const value = Number.parseFloat(raw);
+  if (!Number.isFinite(value)) return raw || "—";
+  return value.toLocaleString("en-US", {
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    maximumFractionDigits: 6,
   });
 }
 
@@ -67,6 +67,13 @@ function formatTime(iso?: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
   return date.toLocaleString();
+}
+
+function formatOrderTime(order: ListedOrder): string {
+  if (typeof order.status_ts_ms === "number" && order.status_ts_ms > 0) {
+    return formatTime(new Date(order.status_ts_ms).toISOString());
+  }
+  return "—";
 }
 
 export function BottomTabs({ markets }: BottomTabsProps) {
@@ -221,7 +228,7 @@ function renderOrders(
   }
   return orders.map((order) => (
     <tr key={order.id}>
-      {withTime ? <td className="data">—</td> : null}
+      {withTime ? <td className="data">{formatOrderTime(order)}</td> : null}
       <td className="data">{marketLabel(markets, order)}</td>
       <td className="data">{order.side}</td>
       <td className="data">{formatPrice(order.price)}</td>

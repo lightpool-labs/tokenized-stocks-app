@@ -217,7 +217,7 @@ export function OrderBookPanel({ market }: OrderBookPanelProps) {
 
   useEffect(() => {
     const spotMarket = market?.spot_market?.trim();
-    const symbol = market?.symbol?.trim();
+    const marketName = market?.pair?.trim() || market?.symbol?.trim();
     if (!spotMarket) {
       setBook(emptyBook());
       setTrades([]);
@@ -231,8 +231,8 @@ export function OrderBookPanel({ market }: OrderBookPanelProps) {
     setStatus("Loading…");
     setError(null);
 
-    if (symbol) {
-      void fetchMarketTrades(symbol)
+    if (marketName) {
+      void fetchMarketTrades(marketName)
         .then((rows) => setTrades(rows))
         .catch(() => setTrades([]));
     }
@@ -258,7 +258,7 @@ export function OrderBookPanel({ market }: OrderBookPanelProps) {
     return () => {
       unsubscribe();
     };
-  }, [market?.spot_market, market?.symbol]);
+  }, [market?.spot_market, market?.pair, market?.symbol]);
 
   useEffect(() => {
     prevSizes.current = null;

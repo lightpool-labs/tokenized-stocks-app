@@ -107,7 +107,11 @@ export function OrderTicket({ pair, selected }: OrderTicketProps) {
     placeOrder,
   } = useWallet();
 
-  const baseSymbol = selected?.symbol ?? pair.split("/")[0] ?? "—";
+  const baseSymbol =
+    selected?.symbol ??
+    pair.split("_")[0] ??
+    pair.split("/")[0] ??
+    "—";
   const quoteSymbol = "USDT";
   const available = useMemo(
     () => availableForSide(balances, side, baseSymbol),

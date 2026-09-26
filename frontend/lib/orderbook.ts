@@ -111,9 +111,9 @@ export async function fetchBookSnapshot(
   return res.json() as Promise<BookResponse>;
 }
 
-export async function fetchMarketTrades(symbol: string): Promise<MarketTrade[]> {
+export async function fetchMarketTrades(marketName: string): Promise<MarketTrade[]> {
   const res = await fetch(
-    `${CLOB_INDEX_URL}/api/markets/${encodeURIComponent(symbol)}/trades`,
+    `${CLOB_INDEX_URL}/api/markets/${encodeURIComponent(marketName)}/trades`,
   );
   if (!res.ok) {
     throw new Error(`Trades ${res.status}`);

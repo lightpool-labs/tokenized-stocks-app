@@ -237,7 +237,7 @@ async fn create_market(
         let registry = state.registry.lock().await;
         if registry.find_market(&symbol).is_some() {
             return Err(AppError::BadRequest(format!(
-                "market {symbol}/USDT already registered"
+                "market {symbol}_USDT already registered"
             )));
         }
     }
