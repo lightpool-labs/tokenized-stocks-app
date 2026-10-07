@@ -22,7 +22,7 @@ Download the other repositories and build them. Repositories that are already cl
 ./scripts/download-and-build.sh
 ```
 
-The script clones these repositories next to this app: `lightpool-node`, `lightpool-crypto`, `lightpool-sdk-rust`, `lightpool-clob-indexer`, `lightpool-bridge`, `lightpool-bot`, and `lightpool-tutorials`. It then downloads Reth and builds the node, indexer, bridge, equity liquidity maker, and app backend.
+The script clones these repositories next to this app: `lightpool-node`, `lightpool-crypto`, `lightpool-sdk-rust`, `lightpool-clob-indexer`, `lightpool-bridge`, `lightpool-bot`, and `lightpool-tutorials`. It then downloads Reth and builds the node, indexer, bridge, liquidity maker, and app backend.
 
 ## Step 3
 

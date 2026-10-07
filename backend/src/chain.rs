@@ -108,6 +108,7 @@ pub async fn create_spot_market(
         side_book_size: SegmentSize::Large,
         creator: sender,
         access: Default::default(),
+        whitelist: None,
     };
 
     let action = ActionBuilder::create_market(params)

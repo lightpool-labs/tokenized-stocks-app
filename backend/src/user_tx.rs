@@ -375,6 +375,7 @@ pub async fn prepare_place_order(
             order_type,
             limit_price,
             token_address,
+            whitelist: None,
         },
     )
     .map_err(|e| AppError::Internal(format!("build place_order action: {e}")))?;
